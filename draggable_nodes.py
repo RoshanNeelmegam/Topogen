@@ -38,7 +38,6 @@ class DraggableNode(QGraphicsItemGroup):
         # Set an initial position that's random
         self.setPos(position)
 
-
     def mouseDoubleClickEvent(self, event):
         if self.link_mode is False:
             ''' Open a dialog to rename the node when double-clicked '''
@@ -49,11 +48,16 @@ class DraggableNode(QGraphicsItemGroup):
                 self.text_item.setPos(image_rect.width() / 2 - self.text_item.boundingRect().width() / 2, image_rect.height() + 5)
                 self.name = new_name
 
+    # def mouseReleaseEvent(self, event):
+    #     ''' On mouse release after dragging, update the links position which are connected to this device
+    #         which makes sure when the nodes move, the links connected to it moves as well'''
+    #     super().mouseReleaseEvent(event) # makes sure item doesn't jump to offset and the dragging feels natural
+    #     for link in self.links: 
+    #         link.update_position()   
+    # a better method is defined below with much more dynamic change
 
-    def mouseReleaseEvent(self, event):
-        ''' On mouse release after dragging, update the links position which are connected to this device
-            which makes sure when the nodes move, the links connected to it moves as well'''
-        super().mouseReleaseEvent(event)
+    def mouseMoveEvent(self, event):
+        super().mouseMoveEvent(event)
         for link in self.links:
-            link.update_position()   
+            link.update_position()
 
