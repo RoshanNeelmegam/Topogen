@@ -18,6 +18,7 @@ class DraggableNode(QGraphicsItemGroup):
         self.name = name
         self.device_type = device_type
         self.no_of_intfs = 1
+        self.links = []
 
         # Image that either represets a router or a host
         self.image_item = QGraphicsPixmapItem(QPixmap(image_path).scaled(60, 60))
@@ -47,4 +48,12 @@ class DraggableNode(QGraphicsItemGroup):
                 image_rect = self.image_item.boundingRect()
                 self.text_item.setPos(image_rect.width() / 2 - self.text_item.boundingRect().width() / 2, image_rect.height() + 5)
                 self.name = new_name
+
+
+    def mouseReleaseEvent(self, event):
+        ''' On mouse release after dragging, update the links position which are connected to this device
+            which makes sure when the nodes move, the links connected to it moves as well'''
+        super().mouseReleaseEvent(event)
+        for link in self.links:
+            link.update_position()   
 

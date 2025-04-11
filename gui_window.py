@@ -36,11 +36,8 @@ class MyGraphicsView(QGraphicsView):
                     self.end_pos = scene_pos
                     self.end_node = item #Store the end node
                     if not (self.start_node == self.end_node):
-                        #Create the link using the nodes positions.
-                        start_center = self.start_node.boundingRect().center() + self.start_node.pos()
-                        end_center = self.end_node.boundingRect().center() + self.end_node.pos()
-                        link = Link(x1=start_center.x(), y1=start_center.y(), x2=end_center.x(), y2=end_center.y())
-                        link.setZValue(-1)  # Set the z-value to a lower value
+                        # creating a link using a link object
+                        link = Link(start_node=self.start_node, end_node=self.end_node)
                         self.scene().addItem(link)
                         self.links.append(link)
                         self.end_pos = None
@@ -50,6 +47,8 @@ class MyGraphicsView(QGraphicsView):
                         self.start_node.no_of_intfs +=1
                         self.end_node.no_of_intfs += 1
                         print(connections_list)
+                        self.start_node.links.append(link)
+                        self.end_node.links.append(link)
                     else: 
                         # This condition is important otherwise, self.end_node will always be self.start_node and loop will continue
                         self.end_node = None
