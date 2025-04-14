@@ -30,24 +30,24 @@ name: {self.lab_name}
 topology:
   kinds:
     {self.switch_kind}:
-      image: {self.switch_image}"""
+      image: {self.switch_image}\n"""
         if self.host_kind != self.switch_kind:
             self.contents = f"""
     {self.host_kind}:
-      image: {self.host_image}
-  nodes:"""
+      image: {self.host_image}"""
+        self.contents += """  nodes:"""
         for device in self.devices_dict:
             if device.device_type == 'router':
                 self.contents += f"""
-{device.name}:
-    kind: {self.switch_kind}
-    mgmt-ipv4: {self.mgmt_network_part}.{self.ip}"""
+    {device.name}:
+        kind: {self.switch_kind}
+        mgmt-ipv4: {self.mgmt_network_part}.{self.ip}"""
                 self.ip += 1
             elif device.device_type == 'host':
                 self.contents += f"""
-{device.name}:
-    kind: {self.host_kind}
-    mgmt-ipv4: {self.mgmt_network_part}.{self.ip}"""
+    {device.name}:
+        kind: {self.host_kind}
+        mgmt-ipv4: {self.mgmt_network_part}.{self.ip}"""
                 self.ip += 1
         self.contents += """  
   links:"""
