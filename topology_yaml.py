@@ -10,31 +10,32 @@ class topology_yaml_constructor:
         call the topology_yaml_file_generator method to just construct the yaml 
         contents and return the same '''
     
-    def __init__(self, connection_list, devices_dict, switch_kind="ceos", host_kind="ceos", switch_image="ceosimage:4.32.2F", host_image="ceosimage:4.32.2F", ipv4_mgmt_subnet="172.200.200.0/24"):
-        self.switch_kind = switch_kind
-        self.host_kind = host_kind 
+    def __init__(self, connection_list, devices_dict, switch_image, host_image):
         self.switch_image = switch_image
         self.host_image = host_image
-        self.ipv4_mgmt_subnet = ipv4_mgmt_subnet
-        self.mgmt_network_part = re.findall(r'(\d+\.\d+\.\d+)\.\d+.+', ipv4_mgmt_subnet)[0]
         self.ip = 10
         self.lab_name = f'{random.choice(awesome_names)}{random.randint(0, 1000)}'
         self.connection_list = connection_list
         self.devices_dict = devices_dict
         self.contents = ''
+        if re.match(r"ceos.*", self.switch_image):
+            self.switch_kind = 'ceos'
+        if re.match(r"ceos.*", self.host_image):
+            self.host_kind = 'ceos'
+        elif re.match(r"linux.*", self.host_image):
+            self.host_kind = 'linux'
 
     def yaml_file_generator(self):
-        self.contents = f"""
-        
-name: {self.lab_name}
+        self.ipv4_mgmt_subnet = f"172.{random.randint(0,255)}.{random.randint(0,255)}.0/24"
+        self.mgmt_network_part = re.findall(r'(\d+\.\d+\.\d+)\.\d+.+', self.ipv4_mgmt_subnet)[0]
+        self.contents = f"""name: {self.lab_name}
 topology:
   kinds:
     {self.switch_kind}:
       image: {self.switch_image}\n"""
         if self.host_kind != self.switch_kind:
-            self.contents = f"""
-    {self.host_kind}:
-      image: {self.host_image}"""
+            self.contents += f"""    {self.host_kind}:
+      image: {self.host_image}\n"""
         self.contents += """  nodes:"""
         for device in self.devices_dict:
             if device.device_type == 'router':
