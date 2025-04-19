@@ -14,3 +14,10 @@ class Link(QGraphicsLineItem):
     def update_position(self):
         line = QLineF(self.start_node.boundingRect().center() + self.start_node.pos(), self.end_node.boundingRect().center() + self.end_node.pos())
         self.setLine(line) # draws the line between the set points 
+
+    def get_endpoint(self, node):
+        # returns the opposite endpoint and its connected interface
+        if node == self.start_node:
+            return f"{self.end_node.name}-{self.end_node.links_name[self]}"
+        else:
+            return f"{self.start_node.name}-{self.start_node.links_name[self]}"

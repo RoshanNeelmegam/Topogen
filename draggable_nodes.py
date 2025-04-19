@@ -20,6 +20,7 @@ class DraggableNode(QGraphicsItemGroup):
         self.no_of_intfs = 1
         self.links = []
         self.links_name = {}
+        self.base_yaml_file_created = False
 
         # Image that either represets a router or a host
         self.image_item = QGraphicsPixmapItem(QPixmap(image_path).scaled(60, 60))
@@ -53,4 +54,3 @@ class DraggableNode(QGraphicsItemGroup):
         super().mouseMoveEvent(event)
         for link in self.links:
             link.update_position()
-
