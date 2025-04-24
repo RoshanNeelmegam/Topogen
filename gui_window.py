@@ -1,6 +1,6 @@
 import os, uuid, paramiko, tempfile, subprocess
 from PySide6.QtWidgets import QMainWindow, QToolBar, QStatusBar, QInputDialog, QGraphicsScene, QGraphicsView, QGraphicsItemGroup, QComboBox, QDialog, QToolButton, QLabel, QVBoxLayout, QHBoxLayout, QPushButton, QTextEdit, QDialogButtonBox, QApplication, QRadioButton, QLineEdit # built in widgets 
-from PySide6.QtGui import QAction, QIcon, QTransform # all gui specific 
+from PySide6.QtGui import QAction, QIcon, QTransform, QPainter # all gui specific 
 from PySide6.QtCore import QSize, QPointF, Qt # non gui stuff
 from draggable_nodes import DraggableNode
 from topology_yaml import topology_yaml_constructor
@@ -258,6 +258,7 @@ class GuiWindow(QMainWindow):
          # Graphics Items are placed in a canvas called scene and the camera or view is placed in front of the scene
         self.scene = QGraphicsScene(self)
         self.view = MyGraphicsView(self.scene, False)
+        self.view.setRenderHint(QPainter.Antialiasing)
         self.setCentralWidget(self.view)
 
     def create_provision_button(self, name, handler):
