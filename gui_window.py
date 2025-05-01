@@ -10,6 +10,7 @@ from config_creator.link_config_mode import LinkConfigDialog
 from config_creator.mlag_config_mode import MlagConfigDialog
 from config_creator.bgp_config_mode import BgpConfigDialog
 from config_creator.vxlan_config_mode import VxlanConfigDialog
+from config_creator.get_configs import get_device_configs
 
 connections_list = [] # keeps track of all the connections eg: node1:et1 - node2:et1
 devices_list = [] # keeps track of all the devices in the topology
@@ -30,6 +31,7 @@ class MyGraphicsView(QGraphicsView):
         self.bgp_config_mode = False
         self.vxlan_config_mode = False
         self.config_dir = None
+        self.get_config_mode = False
         
     def mousePressEvent(self, event):
 
@@ -131,6 +133,20 @@ class MyGraphicsView(QGraphicsView):
                     config = dialog.get_config()
                     self.update_device_config(draggable_node.name, ['configs', 'vxlan'], config)
                 return
+        elif self.get_config_mode == True:
+            scene_pos = self.mapToScene(event.pos())
+            item = self.scene().itemAt(scene_pos, QTransform())
+            draggable_node = None
+            if isinstance(item, DraggableNode):
+                # in case of GraphicsItemsGroup being clicked
+                draggable_node = item
+            elif item and item.group() and isinstance(item.group(), DraggableNode):
+                # in case of GraphicsItem being clicked
+                draggable_node = item.group()
+            if draggable_node: 
+                get_device_configs(jinja_template="configs.j2", yaml_file=f"{self.config_dir}/{draggable_node.name}.yml")
+                # print(get_device_configs(jinja_template="configs.j2", yaml_file=f"device_configs_ab3c8edb/Node1.yml"))
+                return
 
         super().mousePressEvent(event) # calling base class for other clicks
 
@@ -173,42 +189,42 @@ class GuiWindow(QMainWindow):
         self.addToolBar(self.TopologyToolBar)
 
         # topology creation toolbar Options
-        self.add_routers_action = QAction(QIcon("Main/icons/router-icon.png"), "Add Routers", self)
+        self.add_routers_action = QAction(QIcon("./icons/router-icon.png"), "Add Routers", self)
         self.add_routers_action.setStatusTip("Add Router/Switches into your topology")
         self.add_routers_action.triggered.connect(self.add_routers_handler)
         self.TopologyToolBar.addAction(self.add_routers_action)
 
-        self.add_hosts_action = QAction(QIcon('Main/icons/server-icon.png'), 'Add Hosts', self)
+        self.add_hosts_action = QAction(QIcon('./icons/server-icon.png'), 'Add Hosts', self)
         self.add_hosts_action.setStatusTip('Add Hosts into your topology')
         self.add_hosts_action.triggered.connect(self.add_hosts_handler)
         self.TopologyToolBar.addAction(self.add_hosts_action)
 
-        self.link_mode_action = QAction(QIcon('Main/icons/connection-icon.png'), 'Link Mode', self)
+        self.link_mode_action = QAction(QIcon('./icons/connection-icon.png'), 'Link Mode', self)
         self.link_mode_action.setStatusTip('Select two devices and add links between them')
         self.link_mode_action.triggered.connect(self.link_mode_action_handler)
         self.TopologyToolBar.addAction(self.link_mode_action)
 
-        self.select_os_action = QAction(QIcon('Main/icons/os-selector-icon.png'), 'Select Image', self)
+        self.select_os_action = QAction(QIcon('./icons/os-selector-icon.png'), 'Select Image', self)
         self.select_os_action.setStatusTip('Select the image to run on the devices')
         self.select_os_action.triggered.connect(self.select_os_handler)
         self.TopologyToolBar.addAction(self.select_os_action)
 
-        self.get_yaml_file_action = QAction(QIcon('Main/icons/get-file.png'), 'Get Toplogy File', self)
+        self.get_yaml_file_action = QAction(QIcon('./icons/get-file.png'), 'Get Toplogy File', self)
         self.get_yaml_file_action.setStatusTip('Get the topology.yaml file')
         self.get_yaml_file_action.triggered.connect(self.generate_topology_file)
         self.TopologyToolBar.addAction(self.get_yaml_file_action)
         
-        self.deploy_action = QAction(QIcon('Main/icons/deploy-lab-icon.png'), 'Deploy Lab', self)
+        self.deploy_action = QAction(QIcon('./icons/deploy-lab-icon.png'), 'Deploy Lab', self)
         self.deploy_action.setStatusTip('Deploy topology locally or remotely')
         self.deploy_action.triggered.connect(self.deploy_lab_handler)
         self.TopologyToolBar.addAction(self.deploy_action)
 
-        self.save_config_action = QAction(QIcon('Main/icons/save-config.png'), 'Save Config', self)
+        self.save_config_action = QAction(QIcon('./icons/save-config.png'), 'Save Config', self)
         self.save_config_action.setStatusTip('Save Configs (saves on the remote server)')
         self.save_config_action.triggered.connect(self.save_config_handler)
         self.TopologyToolBar.addAction(self.save_config_action)
 
-        self.destroy_action = QAction(QIcon('Main/icons/destroy-lab-icon.png'), 'Destroy Lab', self)  
+        self.destroy_action = QAction(QIcon('./icons/destroy-lab-icon.png'), 'Destroy Lab', self)  
         self.destroy_action.setStatusTip('Destroy the deployed lab (currenly works only for remote deployment)')
         self.destroy_action.triggered.connect(self.destroy_lab_handler)
         self.TopologyToolBar.addAction(self.destroy_action)
@@ -255,7 +271,10 @@ class GuiWindow(QMainWindow):
         self.vxlan_config_btn = self.create_provision_button("Vxlan Config", self.handle_vxlan_config)
         self.ProvisionToolBar.addWidget(self.vxlan_config_btn)
 
-         # Graphics Items are placed in a canvas called scene and the camera or view is placed in front of the scene
+        self.get_configs_btn = self.create_provision_button("Get Configs", self.get_configs)
+        self.ProvisionToolBar.addWidget(self.get_configs_btn)
+
+        # graphics items are placed in a canvas called scene and the camera or view is placed in front of the scene
         self.scene = QGraphicsScene(self)
         self.view = MyGraphicsView(self.scene, False)
         self.view.setRenderHint(QPainter.Antialiasing)
@@ -285,7 +304,7 @@ class GuiWindow(QMainWindow):
         no_of_routers, ok_status = QInputDialog.getInt(self, "Routers", "Enter the number or routers:", 1, 1, 50)
         if ok_status:
             for i in range(no_of_routers):
-                router = DraggableNode(image_path="Main/icons/router.png", name=f"Node{i+1+self.routers_num}", device_type="router", position=QPointF(i * 80, 50))
+                router = DraggableNode(image_path="./icons/router.png", name=f"Node{i+1+self.routers_num}", device_type="router", position=QPointF(i * 80, 50))
                 self.scene.addItem(router)
                 devices_list.append(router)
             self.routers_num += no_of_routers
@@ -294,7 +313,7 @@ class GuiWindow(QMainWindow):
         no_of_hosts, ok_status = QInputDialog.getInt(self, "Hosts", "Enter the number or hosts:", 1, 1, 50)
         if ok_status:
             for i in range(no_of_hosts):
-                host = DraggableNode(image_path="Main/icons/server.png", name=f"Host{i+1+self.hosts_num}",device_type="host", position=QPointF(i * 80, 50))
+                host = DraggableNode(image_path="./icons/server.png", name=f"Host{i+1+self.hosts_num}",device_type="host", position=QPointF(i * 80, 50))
                 self.scene.addItem(host)
                 devices_list.append(host)
             self.hosts_num += no_of_hosts
@@ -303,7 +322,7 @@ class GuiWindow(QMainWindow):
         if self.link_mode == False:
             self.link_mode = True
             # change icon if triggered
-            self.link_mode_action.setIcon(QIcon('Main/icons/connection-icon-colored.png'))
+            self.link_mode_action.setIcon(QIcon('./icons/connection-icon-colored.png'))
             for device in devices_list:
                 device.setFlags(~QGraphicsItemGroup.ItemIsMovable)
                 device.link_mode = True
@@ -313,7 +332,7 @@ class GuiWindow(QMainWindow):
                 device.setFlags(QGraphicsItemGroup.ItemIsMovable | QGraphicsItemGroup.ItemIsSelectable)
                 device.link_mode = False
             self.link_mode = False
-            self.link_mode_action.setIcon(QIcon('Main/icons/connection-icon.png'))
+            self.link_mode_action.setIcon(QIcon('./icons/connection-icon.png'))
             self.view.link_mode=False
 
     def select_os_handler(self):
@@ -602,6 +621,7 @@ class GuiWindow(QMainWindow):
             self.view.mlag_config_mode = False
             self.view.bgp_config_mode = False
             self.view.vxlan_config_mode = False
+            self.view.get_config_mode = False
         else:
             self.view.link_config_mode = False
 
@@ -611,6 +631,7 @@ class GuiWindow(QMainWindow):
             self.view.link_config_mode = False
             self.view.bgp_config_mode = False
             self.view.vxlan_config_mode = False
+            self.view.get_config_mode = False
         else:
             self.view.mlag_config_mode == False
 
@@ -620,6 +641,7 @@ class GuiWindow(QMainWindow):
             self.view.link_config_mode = False
             self.view.mlag_config_mode = False
             self.view.vxlan_config_mode = False
+            self.view.get_config_mode = False
         else:
             self.view.bgp_config_mode == False
 
@@ -629,8 +651,25 @@ class GuiWindow(QMainWindow):
             self.view.link_config_mode = False
             self.view.mlag_config_mode = False
             self.view.bgp_config_mode = False
+            self.view.get_config_mode = False
         else:
             self.view.vxlan_config_mode == False
+
+    def get_configs(self):
+        if self.view.get_config_mode == False:
+            self.view.get_config_mode = True
+            self.view.vxlan_config_mode = False
+            self.view.link_config_mode = False
+            self.view.mlag_config_mode = False
+            self.view.bgp_config_mode = False
+            for device in devices_list:
+                device.setFlags(~QGraphicsItemGroup.ItemIsMovable)
+        else:
+            self.view.get_config_mode = False
+            for device in devices_list:
+                device.setFlags(QGraphicsItemGroup.ItemIsMovable | QGraphicsItemGroup.ItemIsSelectable)
+
+
 
 ### 
 # Icons Attribution:

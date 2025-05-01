@@ -2,6 +2,8 @@ from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QGroupBox, QTextEdit
 )
+from ruamel.yaml.scalarstring import DoubleQuotedScalarString as dqs
+
 
 class BgpConfigDialog(QDialog):
     def __init__(self, device):
@@ -141,14 +143,14 @@ class BgpConfigDialog(QDialog):
             if len(parts) >= 3:
                 vlans.append({
                     'name': parts[0].strip(),
-                    'rd': parts[1].strip(),
-                    'rt': parts[2].strip(),
+                    'rd': dqs(parts[1].strip()),
+                    'rt': dqs(parts[2].strip()),
                     'redistribute': ['learned']
                 })
 
         # --- Address Families ---
         address_families = [
-            {
+            { 
                 'name': 'evpn',
                 'to_activate': [{'name': evpn_name}],
                 'to_deactivate': [{'name': name} for name in non_evpn_peer_groups]
@@ -164,7 +166,7 @@ class BgpConfigDialog(QDialog):
         return {
             'router_id': router_id,
             'router_as': router_as,
-            'iBGP': None,
+            'iBGP': {'neighbors': ibgp_neighbors},
             'eBGP': {'neighbors': ebgp_neighbors},
             'evpnBGP': {
                 'name': evpn_name,
