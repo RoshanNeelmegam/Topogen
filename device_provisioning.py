@@ -31,23 +31,19 @@ def update_yaml_field(data, path, value):
     current = data
     for key in path[:-1]:
         if isinstance(key, int):
-            print('nahoo')
             # Ensure the list has enough length
             while len(current) <= key:
                 current.append({})
             current = current[key]
         else:
-            print('cahoo')
             if key not in current or current[key] is None:
                 current[key] = {}
             current = current[key]
 
     last_key = path[-1]
     if isinstance(current, list) and isinstance(last_key, int):
-        print('kahoo')
         while len(current) <= last_key:
             current.append({})
         current[last_key] = value
     else:
-        print('yahoo')
         current[last_key] = value
