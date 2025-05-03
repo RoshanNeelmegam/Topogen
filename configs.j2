@@ -1,120 +1,128 @@
-
-
 {% if configs.interfaces %}
-! Interface configurations
+! --- INTERFACE CONFIGURATIONS ---
+
 {% for interface in configs.interfaces %}
 interface {{ interface.name }}
 {% if interface.mode == "no switchport" %}
-  no switchport
-  ip address {{ interface.ip }}
+   no switchport
+   ip address {{ interface.ip }}
 {% elif interface.mode == "switchport" and interface.vlan_mode == "access" %}
-  switchport
-  switchport mode access
-  switchport access vlan {{ interface.vlan_id }}
+   switchport
+   switchport mode access
+   switchport access vlan {{ interface.vlan_id }}
 {% elif interface.mode == "switchport" and interface.vlan_mode == "trunk" %}
-  switchport
-  switchport mode trunk
-  switchport trunk allowed vlan add {{ interface.allowed_vlans }}
+   switchport
+   switchport mode trunk
+   switchport trunk allowed vlan add {{ interface.allowed_vlans }}
 {% elif interface.mode == "lag" %}
-  switchport
-  channel-group {{ interface["channel-group"]["key-id"] }} mode {{ interface["channel-group"]["mode"] }}
+   switchport
+   channel-group {{ interface["channel-group"]["key-id"] }} mode {{ interface["channel-group"]["mode"] }}
 {% endif %}
 {% endfor %}
 {% endif %}
-
 {% if configs.mlag %}
-! Mlag Configurations
+
+! --- MLAG CONFIGURATIONS ---
+
 {% for interface in configs.mlag.peer_link %}
 interface {{ interface }}
- channel-group 777 mode active
+  channel-group 777 mode active
 {% endfor %}
 !
 vlan 4094
  trunk group mlag
 !
 interface Vlan4094
- ip address {{ configs.mlag.mlag_ip }}
+  ip address {{ configs.mlag.mlag_ip }}
 !
 no spanning-tree vlan 4094
 no spanning-tree vlan-id 4094
 !
 interface Port-Channel777
- switchport mode trunk
- switchport trunk group mlag
+  switchport mode trunk
+  switchport trunk group mlag
 !
 mlag configuration
- domain-id mlag
- local-interface Vlan4094
- peer-address {{ configs.mlag.mlag_peer_ip }}
- peer-link Port-Channel777
+  domain-id mlag
+  local-interface Vlan4094
+  peer-address {{ configs.mlag.mlag_peer_ip.split('/')[0] }}
+  peer-link Port-Channel777
 {% endif %}
 {% if configs.bgp %}
-! Bgp Configurations
+
+! --- BGP CONFIGURATIONS ---
+
+ip routing
+!
 router bgp {{ configs.bgp.router_as }}
-  router-id {{ configs.bgp.router_id }}
-  no bgp default ipv4-unicast
-  maximum-paths 4 ecmp 4
+   router-id {{ configs.bgp.router_id }}
+{% if configs.bgp.evpnBGP.neighbors %}
+   no bgp default ipv4-unicast
+{% endif %}
+   maximum-paths 4 ecmp 4
 {% if configs.bgp.iBGP.neighbors %}
-  ! Ibgp Neighbors
+   ! Ibgp Neighbors
 {% for neighbor in configs.bgp.iBGP.neighbors %}
-  neighbor {{ neighbor.ip }} remote-as {{ neighbor.remote_as }}
-  neighbor {{ neighbor.ip }} peer group {{ neighbor.peer_group }}
-  neighbor {{ neighbor.ip }} send-community
-  neighbor {{ neighbor.ip }} maximum-routes {{ neighbor.max_routes }}
+   neighbor {{ neighbor.ip }} remote-as {{ neighbor.remote_as }}
+   neighbor {{ neighbor.ip }} peer group {{ neighbor.peer_group }}
+   neighbor {{ neighbor.ip }} send-community
+   neighbor {{ neighbor.ip }} maximum-routes {{ neighbor.max_routes }}
 {% endfor %}
 {% endif %}
 {% if configs.bgp.eBGP.neighbors %}
-  ! Ebgp Neighbors
+   ! Ebgp Neighbors
 {% for neighbor in configs.bgp.eBGP.neighbors %}
-  neighbor {{ neighbor.ip }} remote-as {{ neighbor.remote_as }}
-  neighbor {{ neighbor.ip }} peer group {{ neighbor.peer_group }}
-  neighbor {{ neighbor.ip }} send-community
-  neighbor {{ neighbor.ip }} maximum-routes {{ neighbor.max_routes }}
+   neighbor {{ neighbor.ip }} remote-as {{ neighbor.remote_as }}
+   neighbor {{ neighbor.ip }} peer group {{ neighbor.peer_group }}
+   neighbor {{ neighbor.ip }} send-community
+   neighbor {{ neighbor.ip }} maximum-routes {{ neighbor.max_routes }}
 {% endfor %}
 {% endif %}
-{% if configs.bgp.evpnBGP %}
-  ! Evpn Bgp Configurations
-  neighbor {{ configs.bgp.evpnBGP.name }} peer group
-  neighbor {{ configs.bgp.evpnBGP.name }} update-source {{ configs.bgp.evpnBGP.update_source }}
-  neighbor {{ configs.bgp.evpnBGP.name }} ebgp-multihop 2
-  neighbor {{ configs.bgp.evpnBGP.name }} send-community
-  neighbor {{ configs.bgp.evpnBGP.name }} maximum-routes 0
+{% if configs.bgp.evpnBGP.neighbors %}
+   ! Evpn Bgp Configurations
+   neighbor {{ configs.bgp.evpnBGP.name }} peer group
+   neighbor {{ configs.bgp.evpnBGP.name }} update-source {{ configs.bgp.evpnBGP.update_source }}
+   neighbor {{ configs.bgp.evpnBGP.name }} ebgp-multihop 2
+   neighbor {{ configs.bgp.evpnBGP.name }} send-community
+   neighbor {{ configs.bgp.evpnBGP.name }} maximum-routes 0
 {% for neighbor in configs.bgp.evpnBGP.neighbors %}
-  neighbor {{ neighbor.ip }} peer group {{ configs.bgp.evpnBGP.name }}
-  neighbor {{ neighbor.ip }} remote-as {{ neighbor.remote_as }}
+   neighbor {{ neighbor.ip }} peer group {{ configs.bgp.evpnBGP.name }}
+   neighbor {{ neighbor.ip }} remote-as {{ neighbor.remote_as }}
 {% endfor %}
 {% if configs.bgp.evpnBGP.mac_vrfs.vlans %}
 {% for vlan in configs.bgp.evpnBGP.mac_vrfs.vlans %}
-  vlan {{ vlan.name }}
-    rd {{ vlan.rd }}
-    rt {{ vlan.rt }}
-    redistribute {{ vlan.redistribute | join(', ') }}
+   vlan {{ vlan.name }}
+     rd {{ vlan.rd }}
+     rt {{ vlan.rt }}
+     redistribute {{ vlan.redistribute | join(', ') }}
 {% endfor %}
-{% endif %}
 {% endif %}
 {% for af in configs.bgp.address_families %}
-  address-family {{ af.name }}
+   address-family {{ af.name }}
 {% for peer in af.to_activate %}
-    neighbor {{ peer.name }} activate
+     neighbor {{ peer.name }} activate
 {% endfor %}
 {% for peer in af.to_deactivate %}
-    no neighbor {{ peer.name }} activate
+     no neighbor {{ peer.name }} activate
 {% endfor %}
 {% if af.to_advertise %}
 {% for net in af.to_advertise %}
-   network {{ net.name }}
+    network {{ net.name }}
 {% endfor %}
 {% endif %}
 {% endfor %}
+{% endif %}
 {% endif %}
 {% if configs.vxlan %}
-! Vxlan Configurations
+
+! --- VXLAN CONFIGURATIONS ---
+
 interface vxlan1
-  vxlan source-interface {{ configs["vxlan"]["source-interface"] }}
+   vxlan source-interface {{ configs["vxlan"]["source-interface"] }}
 {% for vlan, vni in configs.vxlan["vlan-vni-mappings"].items() %}
-  vxlan vlan {{ vlan }} vni {{ vni }}
+   vxlan vlan {{ vlan }} vni {{ vni }}
 {% endfor %}
 {% for vrf, vni in configs.vxlan["vrf-vni-mappings"].items() %}
-  vxlan vrf {{ vrf }} vni {{ vni }}
+   vxlan vrf {{ vrf }} vni {{ vni }}
 {% endfor %}
 {% endif %}
