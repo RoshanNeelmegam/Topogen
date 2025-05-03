@@ -1,5 +1,5 @@
-import os, uuid, paramiko, tempfile, subprocess
-from PySide6.QtWidgets import QMainWindow, QToolBar, QStatusBar, QInputDialog, QGraphicsScene, QGraphicsView, QGraphicsItemGroup, QComboBox, QDialog, QToolButton, QLabel, QVBoxLayout, QHBoxLayout, QPushButton, QTextEdit, QDialogButtonBox, QApplication, QRadioButton, QLineEdit # built in widgets 
+import os, paramiko, tempfile, subprocess
+from PySide6.QtWidgets import QMainWindow, QToolBar, QStatusBar, QInputDialog, QGraphicsScene, QGraphicsView, QGraphicsItemGroup, QComboBox, QDialog, QToolButton, QLabel, QVBoxLayout, QHBoxLayout, QPushButton, QTextEdit, QDialogButtonBox, QApplication, QRadioButton, QLineEdit, QMessageBox # built in widgets 
 from PySide6.QtGui import QAction, QIcon, QTransform, QPainter # all gui specific 
 from PySide6.QtCore import QSize, QPointF, Qt # non gui stuff
 from draggable_nodes import DraggableNode
@@ -189,42 +189,47 @@ class GuiWindow(QMainWindow):
         self.addToolBar(self.TopologyToolBar)
 
         # topology creation toolbar Options
-        self.add_routers_action = QAction(QIcon("./icons/router-icon.png"), "Add Routers", self)
+        self.add_routers_action = QAction(QIcon("./icons/router_icon.png"), "Add Routers", self)
         self.add_routers_action.setStatusTip("Add Router/Switches into your topology")
         self.add_routers_action.triggered.connect(self.add_routers_handler)
         self.TopologyToolBar.addAction(self.add_routers_action)
 
-        self.add_hosts_action = QAction(QIcon('./icons/server-icon.png'), 'Add Hosts', self)
+        self.add_hosts_action = QAction(QIcon('./icons/server_icon.png'), 'Add Hosts', self)
         self.add_hosts_action.setStatusTip('Add Hosts into your topology')
         self.add_hosts_action.triggered.connect(self.add_hosts_handler)
         self.TopologyToolBar.addAction(self.add_hosts_action)
 
-        self.link_mode_action = QAction(QIcon('./icons/connection-icon.png'), 'Link Mode', self)
+        self.link_mode_action = QAction(QIcon('./icons/connection_icon.png'), 'Link Mode', self)
         self.link_mode_action.setStatusTip('Select two devices and add links between them')
         self.link_mode_action.triggered.connect(self.link_mode_action_handler)
         self.TopologyToolBar.addAction(self.link_mode_action)
 
-        self.select_os_action = QAction(QIcon('./icons/os-selector-icon.png'), 'Select Image', self)
+        self.select_os_action = QAction(QIcon('./icons/os_selector_icon.png'), 'Select Image', self)
         self.select_os_action.setStatusTip('Select the image to run on the devices')
         self.select_os_action.triggered.connect(self.select_os_handler)
         self.TopologyToolBar.addAction(self.select_os_action)
 
-        self.get_yaml_file_action = QAction(QIcon('./icons/get-file.png'), 'Get Toplogy File', self)
+        self.get_yaml_file_action = QAction(QIcon('./icons/get_file_icon.png'), 'Get Toplogy File', self)
         self.get_yaml_file_action.setStatusTip('Get the topology.yaml file')
         self.get_yaml_file_action.triggered.connect(self.generate_topology_file)
         self.TopologyToolBar.addAction(self.get_yaml_file_action)
         
-        self.deploy_action = QAction(QIcon('./icons/deploy-lab-icon.png'), 'Deploy Lab', self)
+        self.deploy_action = QAction(QIcon('./icons/deploy_lab_icon.png'), 'Deploy Lab', self)
         self.deploy_action.setStatusTip('Deploy topology locally or remotely')
         self.deploy_action.triggered.connect(self.deploy_lab_handler)
         self.TopologyToolBar.addAction(self.deploy_action)
 
-        self.save_config_action = QAction(QIcon('./icons/save-config.png'), 'Save Config', self)
+        self.push_config_action = QAction(QIcon('./icons/push_config_icon'), 'Push Config', self)
+        self.push_config_action.setStatusTip('Push the provisioned configurations to the devices')
+        self.push_config_action.triggered.connect(self.push_config_handler)
+        self.TopologyToolBar.addAction(self.push_config_action)
+
+        self.save_config_action = QAction(QIcon('./icons/save_config_icon.png'), 'Save Config', self)
         self.save_config_action.setStatusTip('Save Configs (saves on the remote server)')
         self.save_config_action.triggered.connect(self.save_config_handler)
         self.TopologyToolBar.addAction(self.save_config_action)
 
-        self.destroy_action = QAction(QIcon('./icons/destroy-lab-icon.png'), 'Destroy Lab', self)  
+        self.destroy_action = QAction(QIcon('./icons/destroy_lab_icon.png'), 'Destroy Lab', self)  
         self.destroy_action.setStatusTip('Destroy the deployed lab (currenly works only for remote deployment)')
         self.destroy_action.triggered.connect(self.destroy_lab_handler)
         self.TopologyToolBar.addAction(self.destroy_action)
@@ -271,6 +276,7 @@ class GuiWindow(QMainWindow):
         self.vxlan_config_btn = self.create_provision_button("Vxlan Config", self.handle_vxlan_config)
         self.ProvisionToolBar.addWidget(self.vxlan_config_btn)
 
+        # get config button
         self.get_configs_btn = self.create_provision_button("Get Configs", self.get_configs)
         self.ProvisionToolBar.addWidget(self.get_configs_btn)
 
@@ -284,7 +290,7 @@ class GuiWindow(QMainWindow):
         button = QToolButton()
         button.setText(name)
         button.setCheckable(True)
-        button.setAutoExclusive(False)  # Set True if you want only one button active at a time
+        button.setAutoExclusive(True)  # setting to true since we want only one button active at a time
         button.setStyleSheet("""
             QToolButton {
                 background-color: lightgray;
@@ -322,7 +328,7 @@ class GuiWindow(QMainWindow):
         if self.link_mode == False:
             self.link_mode = True
             # change icon if triggered
-            self.link_mode_action.setIcon(QIcon('./icons/connection-icon-colored.png'))
+            self.link_mode_action.setIcon(QIcon('./icons/connection_icon_colored.png'))
             for device in devices_list:
                 device.setFlags(~QGraphicsItemGroup.ItemIsMovable)
                 device.link_mode = True
@@ -332,7 +338,7 @@ class GuiWindow(QMainWindow):
                 device.setFlags(QGraphicsItemGroup.ItemIsMovable | QGraphicsItemGroup.ItemIsSelectable)
                 device.link_mode = False
             self.link_mode = False
-            self.link_mode_action.setIcon(QIcon('./icons/connection-icon.png'))
+            self.link_mode_action.setIcon(QIcon('./icons/connection_icon.png'))
             self.view.link_mode=False
 
     def select_os_handler(self):
@@ -399,7 +405,7 @@ class GuiWindow(QMainWindow):
         # turning off link mode if left out accidently, otherwise would lead to issues
         self.link_mode = False
         self.view.link_mode=False
-        self.link_mode_action.setIcon(QIcon('Main/icons/connection-icon.png'))
+        self.link_mode_action.setIcon(QIcon('./icons/connection_icon.png'))
         for device in devices_list:
             device.setFlags(QGraphicsItemGroup.ItemIsMovable | QGraphicsItemGroup.ItemIsSelectable)
             device.link_mode = False
@@ -408,9 +414,7 @@ class GuiWindow(QMainWindow):
                 device.setFlags(~QGraphicsItemGroup.ItemIsMovable)
                 device.link_mode = True
             if self.provisioning_dir_created == False:
-                # creating a unique folder if it not exits for the current session
-                session_id = str(uuid.uuid4())[:8]
-                self.config_dir = f"device_configs_{session_id}"
+                self.config_dir = "device_configs"
                 self.view.config_dir = self.config_dir
                 os.makedirs(self.config_dir, exist_ok=True)
                 self.statusBar.showMessage(f"Provisioning started, configs saved to {self.config_dir}", 5000)
@@ -561,6 +565,53 @@ class GuiWindow(QMainWindow):
         deploy_button.clicked.connect(perform_deploy)
         popup.exec()
 
+    def push_config_handler(self):
+        remote_base_dir = "/home/roshan/Ansible_push/pushrole"
+        local_inventory_path = "inventory.yml"
+
+        try:
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            ssh.connect(self.server_ip, username=self.server_user, password=self.server_password, port=self.server_port)
+
+            sftp = ssh.open_sftp()
+
+            # pushing the inventory file
+            remote_inventory_path = os.path.join(remote_base_dir, "inventory.yml")
+            sftp.put(local_inventory_path, remote_inventory_path)
+
+            # pushing the device yaml
+            remote_host_vars_dir = os.path.join(remote_base_dir, "host_vars")
+            try:
+                sftp.chdir(remote_host_vars_dir)
+            except IOError:
+                sftp.mkdir(remote_host_vars_dir)
+
+            for file in os.listdir(self.config_dir):
+                if file.endswith(".yml") or file.endswith(".yaml"):
+                    local_path = os.path.join(self.config_dir, file)
+                    remote_path = os.path.join(remote_host_vars_dir, file)
+                    sftp.put(local_path, remote_path)
+
+            # executing the playbook which will eventually push the configurations
+            stdin, stdout, stderr = ssh.exec_command(
+                f"cd {remote_base_dir} && ansible-playbook -i inventory.yml playbook.yml -e 'ansible_host_key_checking=False'"
+            )
+
+            output = stdout.read().decode()
+            error = stderr.read().decode()
+            if output:
+                print("OUTPUT:\n", output)
+            if error:
+                print("ERROR:\n", error)
+
+            sftp.close()
+            ssh.close()
+            QMessageBox.information(self, "Success", "Playbook executed successfully.")
+
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to push or execute: {str(e)}")
+
     def destroy_lab_handler(self):
         popup_window = QDialog(self)
         layout = QVBoxLayout()
@@ -670,7 +721,6 @@ class GuiWindow(QMainWindow):
                 device.setFlags(QGraphicsItemGroup.ItemIsMovable | QGraphicsItemGroup.ItemIsSelectable)
 
 
-
 ### 
 # Icons Attribution:
 # <a href="https://www.flaticon.com/free-icons/hub" title="hub icons">Hub icons created by Freepik - Flaticon</a> 
@@ -682,4 +732,5 @@ class GuiWindow(QMainWindow):
 # <a href="https://www.flaticon.com/free-icons/os" title="OS icons">OS icons created by juicy_fish - Flaticon</a>
 # <a href="https://www.flaticon.com/free-icons/yaml" title="yaml icons">Yaml icons created by Muhammad Andy - Flaticon</a>
 # <a href="https://www.flaticon.com/free-icons/save" title="save icons">Save icons created by Freepik - Flaticon</a>
+# <a href="https://www.flaticon.com/free-icons/distribution" title="distribution icons">Distribution icons created by wanicon - Flaticon</a>
 ###

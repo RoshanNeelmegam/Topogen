@@ -24,6 +24,8 @@ class topology_yaml_constructor:
             self.host_kind = 'ceos'
         elif re.match(r"linux.*", self.host_image):
             self.host_kind = 'linux'
+        self.inventory_dict = {}
+        self.inventory_contents = '' 
 
     def yaml_file_generator(self):
         self.ipv4_mgmt_subnet = f"172.{random.randint(0,255)}.{random.randint(0,255)}.0/24"
@@ -38,6 +40,7 @@ topology:
       image: {self.host_image}\n"""
         self.contents += """  nodes:"""
         for device in self.devices_dict:
+            self.inventory_dict[device.name] = f'{self.mgmt_network_part}.{self.ip}'
             if device.device_type == 'router':
                 self.contents += f"""
     {device.name}:
@@ -59,4 +62,23 @@ topology:
 mgmt:
   network: lab_{self.lab_name}_network
   ipv4-subnet: {self.ipv4_mgmt_subnet}"""
+        print(self.inventory_file_generator())
         return(self.contents)
+    
+    def inventory_file_generator(self):
+        self.inventory_contents += """
+all:
+ hosts:"""
+        for device, device_ip in self.inventory_dict.items():
+            self.inventory_contents += f"""\n   {device}:
+    ansible_host: {device_ip}"""
+        self.inventory_contents += """\n vars:
+   ansible_user: admin
+   ansible_password: admin
+   ansible_connection: network_cli
+   ansible_network_os: eos
+   ansible_become: yes
+   ansible_become_method: enable
+   ansible_python_interpretor: /usr/bin/python3"""
+        with open("inventory.yml", "w") as f:
+            f.write(self.inventory_contents)
