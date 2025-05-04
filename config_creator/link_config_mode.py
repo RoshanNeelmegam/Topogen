@@ -132,6 +132,7 @@ class LinkConfigDialog(QDialog):
         interface_configs = []
         for interface, widgets in self.interface_widgets_states.items():
             config = {
+                "name": interface,
                 "mode": "switchport" if widgets["switchport_radio"].isChecked() else "no switchport",
                 "ip": widgets["ip_input"].text() if widgets["no_switchport_radio"].isChecked() else None,
                 "vlan_mode": "access" if widgets["access_radio"].isChecked() else "trunk" if widgets["trunk_radio"].isChecked() else None,
@@ -140,5 +141,5 @@ class LinkConfigDialog(QDialog):
                 "channel-group": {"mode": widgets["channel_group"].currentText(), "key-id": widgets["channel_group_no"].text()} if widgets["channel_group_radio"].isChecked() else None,
                 "description": widgets["description"].text()
             }
-            interface_configs.append({interface: config}) 
+            interface_configs.append(config) 
         return interface_configs
