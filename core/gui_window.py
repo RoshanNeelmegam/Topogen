@@ -2,10 +2,10 @@ import os, paramiko, tempfile, subprocess
 from PySide6.QtWidgets import QMainWindow, QToolBar, QStatusBar, QInputDialog, QGraphicsScene, QGraphicsView, QGraphicsItemGroup, QComboBox, QDialog, QToolButton, QLabel, QVBoxLayout, QHBoxLayout, QPushButton, QTextEdit, QDialogButtonBox, QApplication, QRadioButton, QLineEdit, QMessageBox # built in widgets 
 from PySide6.QtGui import QAction, QIcon, QTransform, QPainter, QKeyEvent # all gui specific 
 from PySide6.QtCore import QSize, QPointF, Qt # non gui stuff
-from draggable_nodes import DraggableNode 
-from topology_yaml import topology_yaml_constructor
-from links import Link
-from device_provisioning import load_device_yaml, save_device_yaml, update_yaml_field
+from core.draggable_nodes import DraggableNode 
+from core.topology_yaml import topology_yaml_constructor
+from core.links import Link
+from core.device_provisioning import load_device_yaml, save_device_yaml, update_yaml_field
 from config_creator.link_config_mode import LinkConfigDialog
 from config_creator.mlag_config_mode import MlagConfigDialog
 from config_creator.bgp_config_mode import BgpConfigDialog
@@ -152,8 +152,7 @@ class MyGraphicsView(QGraphicsView):
                 # in case of GraphicsItem being clicked
                 draggable_node = item.group()
             if draggable_node: 
-                get_device_configs(jinja_template="configs.j2", yaml_file=f"{self.config_dir}/{draggable_node.name}.yml")
-                # print(get_device_configs(jinja_template="configs.j2", yaml_file=f"device_configs_ab3c8edb/Node1.yml"))
+                get_device_configs(jinja_template="templates/configs.j2", yaml_file=f"{self.config_dir}/{draggable_node.name}.yml")
                 return
 
         super().mousePressEvent(event) # calling base class for other clicks

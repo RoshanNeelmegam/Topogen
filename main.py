@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QPalette, QColor, Qt
-from gui_window import GuiWindow
+from core.gui_window import GuiWindow
 
 def force_light_theme(app):
     palette = QPalette()
