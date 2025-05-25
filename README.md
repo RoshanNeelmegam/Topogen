@@ -1,8 +1,3 @@
-<<<<<<< HEAD
-# TopoGenPro
-# Topogen
-# testing
-=======
 # 📘 TopoGen
 
 **TopoGen** is a GUI based tool that allows you to visually design, configure, and deploy network topologies of your choice using ContainerLab. Whether you’re a Network Engineer replicating real world production setups or customer specific scenarios, or a learner building lab environments for hands on practice, TopoGen simplifies and accelerates the entire process. Instead of manually configuring each device or writing scripts from scratch, you can intuitively build topologies, define protocol level configurations (like BGP, VXLAN, etc), and launch containerized network labs all from a user-friendly interface.
@@ -94,4 +89,3 @@ pip install -r requirements.txt
 - Configuration validation before deployment
 
 ---
->>>>>>> 4f0ad82 (updated readme.md)
