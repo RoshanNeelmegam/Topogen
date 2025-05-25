@@ -1,1 +1,9 @@
+# Ignore all __pycache__ directories
+__pycache__/
 **/__pycache__/
+
+# Ignore the device_configs directory
+device_configs/
+
+# Ignore the inventory.yml file
+inventory.yml

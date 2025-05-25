@@ -1,8 +1,8 @@
 import os, paramiko, tempfile, subprocess
 from PySide6.QtWidgets import QMainWindow, QToolBar, QStatusBar, QInputDialog, QGraphicsScene, QGraphicsView, QGraphicsItemGroup, QComboBox, QDialog, QToolButton, QLabel, QVBoxLayout, QHBoxLayout, QPushButton, QTextEdit, QDialogButtonBox, QApplication, QRadioButton, QLineEdit, QMessageBox # built in widgets 
-from PySide6.QtGui import QAction, QIcon, QTransform, QPainter # all gui specific 
+from PySide6.QtGui import QAction, QIcon, QTransform, QPainter, QKeyEvent # all gui specific 
 from PySide6.QtCore import QSize, QPointF, Qt # non gui stuff
-from draggable_nodes import DraggableNode
+from draggable_nodes import DraggableNode 
 from topology_yaml import topology_yaml_constructor
 from links import Link
 from device_provisioning import load_device_yaml, save_device_yaml, update_yaml_field
@@ -22,6 +22,7 @@ class MyGraphicsView(QGraphicsView):
         super().__init__(scene)
         self.setScene(scene)
         self.link_mode = is_link_mode_on
+        self.provisioning_mode = False
         self.link_started = False
         self.start_pos = None
         self.end_pos = None
@@ -32,6 +33,8 @@ class MyGraphicsView(QGraphicsView):
         self.vxlan_config_mode = False
         self.config_dir = None
         self.get_config_mode = False
+        self.num_of_conns = 1 # tracks the number of connections
+        self.stateful_connection_dict = {} # saves the connection data in the format {"connection1": {"link": <link-obj>, "start_node": <start_node_obj>, "end_node": <end_node_obj>}}, which inturn is used to build the global connections_list
         
     def mousePressEvent(self, event):
 
@@ -52,20 +55,25 @@ class MyGraphicsView(QGraphicsView):
                     if not (self.start_node == self.end_node):
                         # creating a link using a link object
                         link = Link(start_node=self.start_node, end_node=self.end_node)
+                        for p_link in self.start_node.links:
+                            if (p_link.end_node == link.end_node or (p_link.start_node == link.end_node and p_link.end_node == link.start_node)) and self:
+                                p_link.offset -= 3
+                                p_link.update_position()
                         self.scene().addItem(link)
                         self.links.append(link)
                         self.end_pos = None
                         self.start_pos = None
                         self.link_started = False
-                        connections_list.append(f'"{self.start_node.name}:eth{self.start_node.no_of_intfs}", "{self.end_node.name}:eth{self.end_node.no_of_intfs}"')
+                        self.stateful_connection_dict[f"connection{self.num_of_conns}"] = {"link": link, "start_node": self.start_node, "end_node": self.end_node}
+                        self.num_of_conns += 1
                         self.start_node.links.append(link)
                         self.end_node.links.append(link)
-                        self.start_node.links_name[link] = f"eth{self.start_node.no_of_intfs}" 
-                        self.end_node.links_name[link] = f"eth{self.end_node.no_of_intfs}"
+                        self.start_node.links_name[link] = self.start_node.no_of_intfs
+                        self.end_node.links_name[link] = self.end_node.no_of_intfs
                         self.start_node.no_of_intfs +=1
                         self.end_node.no_of_intfs += 1
                     else: 
-                        # this condition is important otherwise, self.end_node will always be self.start_node and loop will continue
+                        # This condition is important otherwise, self.end_node will always be self.start_node and loop will continue
                         self.end_node = None
                         self.end_pos = None
                 return 
@@ -151,11 +159,49 @@ class MyGraphicsView(QGraphicsView):
         super().mousePressEvent(event) # calling base class for other clicks
 
     def update_device_config(self, device_name, key_path, data_from_dialogue):
-        # takes in the data received from the dialouge and adds it to the correcponding key path
+        # Takes in the data received from the dialouge and adds it to the correcponding key path
         file_path = os.path.join(self.config_dir, f"{device_name}.yml") # getting the device.yml file path
         data = load_device_yaml(file_path) # loading the yaml file
         update_yaml_field(data, key_path, data_from_dialogue) # updating the required key with the values in yaml
         save_device_yaml(file_path, data) 
+
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        global connections_list
+        items_to_remove = []
+        if self.link_mode == False and self.provisioning_mode == False:
+            ''' This function aids in monitoring the keystrokes and when the delete key is pressed whilst 
+                a node is seletected, the node will be deleted, along with the connected links '''
+            if event.key() in (Qt.Key_Delete, Qt.Key_Backspace):
+                # Need to take care of the following
+                # 1. Delete all the links from the scene associated with the device
+                # 2. Delete the device from the scene
+                # 3. Delete the device from devices_list
+                # 4. Make sure that the deleted links are also removed from other device's link list
+                # 5. Decrement the interface numbers on the devices with which the deleted device had a connection with
+                # 6. Update the stateful_connection_dict to represent the connections that are actually present currently
+                for item in self.scene().selectedItems():
+                    # Removes all the connections associated with the current seleted device to delete
+                    for connection in item.links:
+                        other_end_device = connection.get_other_end_device(item)
+                        other_end_device.delete_connection(connection)
+                        self.scene().removeItem(connection)
+                        # Gets all the links associated with the device that needs to be removed from the stateful_connection_dict
+                        for connection_item in self.stateful_connection_dict:
+                            if self.stateful_connection_dict[connection_item]["link"] == connection:
+                                items_to_remove.append(connection_item)
+                    self.scene().removeItem(item)
+                # Removes all the links associated with the device from the stateful_connection_dict
+                for item_to_remove in items_to_remove:
+                    self.stateful_connection_dict.pop(item_to_remove)
+                # Removes the device from the devices_list used for building topology
+                devices_list.remove(item)
+
+    def update_connections_list(self):
+        ''' This method updates the global connections_list which is used to build the topology file'''
+        global connections_list
+        connections_list = []
+        for connection in self.stateful_connection_dict:
+            connections_list.append(f'"{self.stateful_connection_dict[connection]["start_node"].name}:eth{self.stateful_connection_dict[connection]["start_node"].links_name[self.stateful_connection_dict[connection]["link"]]}", "{self.stateful_connection_dict[connection]["end_node"].name}:eth{self.stateful_connection_dict[connection]["end_node"].links_name[self.stateful_connection_dict[connection]["link"]]}"')
 
 class GuiWindow(QMainWindow):
     global connections_list, devices_list
@@ -171,7 +217,7 @@ class GuiWindow(QMainWindow):
         self.link_config_mode = False
         self.switch_image = "ceosimage:4.32.2F" # setting default os version for switch and host
         self.host_image = "ceosimage:4.32.2F"
-        self.server_ip = '192.168.1.16'
+        self.server_ip = '192.168.207.206'
         self.server_user = 'root'
         self.server_password = 'root$#123'
         self.server_port = '8888'
@@ -372,6 +418,7 @@ class GuiWindow(QMainWindow):
             self.host_image = self.host_os_dropdown.currentText()
 
     def generate_topology_file(self):
+        self.view.update_connections_list()
         topology = topology_yaml_constructor(
             connection_list=connections_list,
             devices_dict=devices_list,
@@ -410,6 +457,7 @@ class GuiWindow(QMainWindow):
             device.setFlags(QGraphicsItemGroup.ItemIsMovable | QGraphicsItemGroup.ItemIsSelectable)
             device.link_mode = False
         if checked:
+            self.view.provisioning_mode = True
             for device in devices_list:
                 device.setFlags(~QGraphicsItemGroup.ItemIsMovable)
                 device.link_mode = True
@@ -436,6 +484,7 @@ class GuiWindow(QMainWindow):
                     save_device_yaml(device_file, base_yaml)
                     device.base_yaml_file_created = True
         elif not checked:
+            self.view.provisioning_mode = False
             self.view.link_config_mode = False
             self.view.mlag_config_mode = False
             self.view.bgp_config_mode = False
@@ -446,6 +495,7 @@ class GuiWindow(QMainWindow):
             self.statusBar.showMessage("Provisioning toolbar hidden", 3000)
 
     def deploy_lab_handler(self):
+        self.view.update_connections_list()
         popup = QDialog(self)
         popup.setWindowTitle("Deploy Topology")
         layout = QVBoxLayout()
@@ -567,6 +617,7 @@ class GuiWindow(QMainWindow):
 
     def push_config_handler(self):
         remote_base_dir = "/home/roshan/Ansible_push/pushrole"
+        # remote_base_dir = "/home/tacblr/test/pushrole"
         local_inventory_path = "inventory.yml"
 
         try:
@@ -713,12 +764,9 @@ class GuiWindow(QMainWindow):
             self.view.link_config_mode = False
             self.view.mlag_config_mode = False
             self.view.bgp_config_mode = False
-            for device in devices_list:
-                device.setFlags(~QGraphicsItemGroup.ItemIsMovable)
         else:
             self.view.get_config_mode = False
-            for device in devices_list:
-                device.setFlags(QGraphicsItemGroup.ItemIsMovable | QGraphicsItemGroup.ItemIsSelectable)
+
 
 
 ### 

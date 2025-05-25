@@ -62,7 +62,6 @@ topology:
 mgmt:
   network: lab_{self.lab_name}_network
   ipv4-subnet: {self.ipv4_mgmt_subnet}"""
-        print(self.inventory_file_generator())
         return(self.contents)
     
     def inventory_file_generator(self):

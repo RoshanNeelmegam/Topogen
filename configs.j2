@@ -4,7 +4,9 @@
 {% for interface in configs.interfaces %}
 interface {{ interface.name }}
 {% if interface.mode == "no switchport" %}
+{% if not interface.name.startswith("loopback") and not interface.name.startswith("vlan") %}
    no switchport
+{% endif %}
    ip address {{ interface.ip }}
 {% elif interface.mode == "switchport" and interface.vlan_mode == "access" %}
    switchport
@@ -105,10 +107,12 @@ router bgp {{ configs.bgp.router_as }}
 {% for peer in af.to_deactivate %}
      no neighbor {{ peer.name }} activate
 {% endfor %}
+{% if af.to_advertise is defined %}
 {% if af.to_advertise %}
 {% for net in af.to_advertise %}
     network {{ net.name }}
 {% endfor %}
+{% endif %}
 {% endif %}
 {% endfor %}
 {% endif %}

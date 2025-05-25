@@ -18,7 +18,7 @@ class LinkConfigDialog(QDialog):
         # interface configuration sections
         for link, interface in self.interfaces.items():
             opp_endpoint = link.get_endpoint(self.device)
-            interface_group = QGroupBox(f"Interface: {interface} (connected to {opp_endpoint})")
+            interface_group = QGroupBox(f"Interface: eth{interface} (connected to {opp_endpoint})")
             interface_layout = QVBoxLayout()
             # interface type
             port_type_layout = QHBoxLayout()
@@ -82,11 +82,12 @@ class LinkConfigDialog(QDialog):
             interface_layout.addWidget(trunk_allowed_vlans_label) # allowed vlans list in case of trunk port
             interface_layout.addWidget(trunk_allowed_vlans_input)
             interface_layout.addWidget(intf_description)
+
             # adding the layout to the interface group
             interface_group.setLayout(interface_layout)
             layout.addWidget(interface_group)
             # saving the state of the widgets as in if they are triggered or not
-            self.interface_widgets_states[interface] = {
+            self.interface_widgets_states[f"eth{interface}"] = {
     "switchport_radio": switchport_radio,
     "no_switchport_radio": no_switchport_radio,
     "access_radio": access_radio,
@@ -111,6 +112,37 @@ class LinkConfigDialog(QDialog):
             trunk_radio.toggled.connect(lambda checked, allow_lbl=trunk_allowed_vlans_label, allow_in=trunk_allowed_vlans_input: (
                 allow_lbl.setVisible(checked), allow_in.setVisible(checked)))
             
+        # creating a loopback group box that holds all the loopbacks and its ips
+        self.loopback_options_group = QGroupBox("Loopbacks")
+        # loopback layout inside which all the loopbacks are present
+        self.loopback_options_vertical_layout = QVBoxLayout()
+        self.loopback_options_vertical_layout.addLayout(self.add_loopback_options())
+        # an add button to add more vlan to vni mappings
+        add_loopback = QPushButton('Add Loopback')
+        add_loopback.setStyleSheet("background-color: #0078D7; color: white;")
+        add_loopback.setAutoDefault(False)
+        add_loopback.setDefault(False)
+        add_loopback.clicked.connect(self.add_widgets_to_loopback_group)
+        self.loopback_options_group.setLayout(self.loopback_options_vertical_layout)
+        layout.addWidget(self.loopback_options_group)
+        layout.addWidget(add_loopback)
+
+        # creating an svi group box that holds all the loopbacks and its ips
+        self.svi_options_group = QGroupBox("Svis")
+        # loopback layout inside which all the loopbacks are present
+        self.svi_options_vertical_layout = QVBoxLayout()
+        self.svi_options_vertical_layout.addLayout(self.add_svi_options())
+        # an add button to add more vlan to vni mappings
+        add_svi = QPushButton('Add Svi')
+        add_svi.setStyleSheet("background-color: #0078D7; color: white;")
+        add_svi.setAutoDefault(False)
+        add_svi.setDefault(False)
+        add_svi.clicked.connect(self.add_widgets_to_svi_group)
+        self.svi_options_group.setLayout(self.svi_options_vertical_layout)
+        layout.addWidget(self.svi_options_group)
+        layout.addWidget(add_svi)
+
+
         self.button_group = QButtonGroup(self)
         self.button_group.addButton(switchport_radio)
         self.button_group.addButton(no_switchport_radio)
@@ -128,11 +160,38 @@ class LinkConfigDialog(QDialog):
         cancel_button.clicked.connect(self.reject)
         self.setFocus() 
 
+
+    def add_loopback_options(self):
+        horizontal_layout = QHBoxLayout()
+        loopback = QLineEdit()
+        ip = QLineEdit()
+        horizontal_layout.addWidget(QLabel("Loopback"))
+        horizontal_layout.addWidget(loopback)
+        horizontal_layout.addWidget(QLabel("ip address"))
+        horizontal_layout.addWidget(ip)
+        return horizontal_layout
+
+    def add_widgets_to_loopback_group(self):
+        self.loopback_options_vertical_layout.addLayout(self.add_loopback_options())
+    
+    def add_svi_options(self):
+        horizontal_layout = QHBoxLayout()
+        vlan = QLineEdit()
+        ip = QLineEdit()
+        horizontal_layout.addWidget(QLabel("Svi"))
+        horizontal_layout.addWidget(vlan)
+        horizontal_layout.addWidget(QLabel("ip address"))
+        horizontal_layout.addWidget(ip)
+        return horizontal_layout
+
+    def add_widgets_to_svi_group(self):
+        self.svi_options_vertical_layout.addLayout(self.add_svi_options())
+
     def get_configurations(self):
         interface_configs = []
         for interface, widgets in self.interface_widgets_states.items():
             config = {
-                "name": interface,
+                "name": f"eth{interface}",
                 "mode": (
     "switchport" if widgets["switchport_radio"].isChecked() else
     "no switchport" if widgets["no_switchport_radio"].isChecked() else
@@ -147,4 +206,37 @@ class LinkConfigDialog(QDialog):
                 "description": widgets["description"].text()
             }
             interface_configs.append(config) 
+        loopbacks = []
+        for i in range(self.loopback_options_vertical_layout.count()):
+            layout = self.loopback_options_vertical_layout.itemAt(i).layout()
+            if layout is not None:
+                name_input = layout.itemAt(1).widget()
+                ip_input = layout.itemAt(3).widget()
+                if name_input and ip_input:
+                    name_text = name_input.text().strip()
+                    ip_text = ip_input.text().strip()
+                    if name_text and ip_text:
+                        loopbacks.append({
+                            "name": f"loopback {name_text}",
+                            "mode": "no switchport",
+                            "ip": ip_text
+                        })
+            interface_configs.extend(loopbacks)
+            svis = []
+            for i in range(self.svi_options_vertical_layout.count()):
+                layout = self.svi_options_vertical_layout.itemAt(i).layout()
+                if layout is not None:
+                    name_input = layout.itemAt(1).widget()
+                    ip_input = layout.itemAt(3).widget()
+                    if name_input and ip_input:
+                        name_text = name_input.text().strip()
+                        ip_text = ip_input.text().strip()
+                        if name_text and ip_text:
+                            svis.append({
+                                "name": f"vlan{name_text}",
+                                "mode": "no switchport",
+                                "ip": ip_text
+                            })
+
+            interface_configs.extend(svis)
         return interface_configs
